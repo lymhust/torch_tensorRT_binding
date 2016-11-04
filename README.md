@@ -1,36 +1,44 @@
-torch-caffe-binding
+torch-tensorRT(GIE)-binding
 ===================
 
-A short binding to use Caffe as a module in Torch7. Has the same functionality as MATLAB bindings.
+A short binding to use tensorRT to load Caffe module in Torch7.
 
-You have to have installed and built Caffe, then do this:
+You have to have installed tensorRT, then do this:
 
 ```bash
-CAFFE_DIR=/*path-to-caffe-root*/ luarocks install caffe
+GIE_DIR=/*path-to-gie-root*/ luarocks make
 ```
 
-Forward and backward are supported:
+For example, in the /*path-to-gie-root*/ contains include and lib subfolders.
+In include, contains NvCaffeParser.h and NvInfer.h.
+In lib, contains libnvcaffe_parser.so and libnvinfer.so.
+
+TensorRT(GIE) should be applied here:
+https://developer.nvidia.com/tensorrt
+
+Here is an example to classify mnist using LeNet:
 
 ```lua
-require 'caffe'
+require 'gie'
+require 'image'
+torch.setdefaulttensortype('torch.FloatTensor')
 
-net = caffe.Net('deploy.prototxt', 'bvlc_alexnet.caffemodel', 'test')
-input = torch.FloatTensor(10,3,227,227)
-output = net:forward(input)
+prototxt_name = './mnist.prototxt'
+binary_name = './mnist.caffemodel'
+data_file = '/home/autopilot/gie_samples/samples/data/samples/mnist/'
+im_name = '7.pgm'
 
-gradOutput = torch.FloatTensor(10,1000,1,1)
-gradInput = net:backward(input, gradOutput)
+net = gie.Net(prototxt_name, binary_name)
+print('Init OK')
+
+input = image.load(data_file..im_name)*255
+img_mean = image.load(data_file..'mean.jpg')*255
+input = input - img_mean
+output = net:inference(input)
+print(output)
+print('Inference OK')
+
+_, ind = output:max(1)
+print('Image name: '..im_name)
+print('Prediction: '..tostring(ind[1]-1))
 ```
-
-Use can also use it inside a network as nn.Module, for example:
-
-```lua
-require 'caffe'
-
-model = nn.Sequential()
-model:add(caffe.Net('deploy.prototxt', 'bvlc_alexnet.caffemodel', 'test'))
-model:add(nn.Linear(1000,1))
-```
-
-To load Caffe networks in Torch7 without having Caffe installed use this:
-https://github.com/szagoruyko/loadcaffe
